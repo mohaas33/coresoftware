@@ -174,7 +174,7 @@ void TrackerEventDisplay::makeJsonFile(PHCompositeNode* topNode)
           float phibin = NAN;
           float tbin = NAN;
           //float phi = NAN;
-	  float phi_center = NAN;
+	        float phi_center = NAN;
           float x = NAN;
           float y = NAN;
           float z = NAN;
@@ -182,7 +182,7 @@ void TrackerEventDisplay::makeJsonFile(PHCompositeNode* topNode)
           if (TrkrDefs::getTrkrId(hitset_key) == TrkrDefs::TrkrId::tpcId)
           {
             PHG4TpcCylinderGeom* GeoLayer_local = geom_container->GetLayerCellGeom(layer_local);
- 	    double radius = GeoLayer_local->get_radius();
+ 	          double radius = GeoLayer_local->get_radius();
             phibin = (float) TpcDefs::getPad(hit_key);
             tbin = (float) TpcDefs::getTBin(hit_key);
             //phi = GeoLayer_local->get_phicenter(phibin);
@@ -198,9 +198,9 @@ void TrackerEventDisplay::makeJsonFile(PHCompositeNode* topNode)
               clusz = -clusz;
             }
             z = clusz;
-            phi_center = GeoLayer_local->get_phicenter(phibin);
-	    x = radius * cos(phi_center);
-	    y = radius * sin(phi_center);
+            phi_center = GeoLayer_local->get_phicenter(phibin, side);
+	          x = radius * cos(phi_center);
+	          y = radius * sin(phi_center);
    
             stringstream spts;
 

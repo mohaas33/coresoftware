@@ -177,7 +177,7 @@ void PHG4TpcPadPlaneReadout::MapToPadPlane(
     }
   }
 
-  phi = check_phi(side, phi, rad_gem);
+  //phi = check_phi(side, phi, rad_gem);
   unsigned int layernum = 0;
   /* TpcClusterBuilder pass_data {}; */
 
@@ -523,15 +523,15 @@ void PHG4TpcPadPlaneReadout::populate_zigzag_phibins(const unsigned int side, co
   }
 
   // Get the range of phi values that completely contains all pads  that touch the charge distribution - (nsigmas + 1/2 pad width) in each direction
-  const double philim_low_calc = phi - (_nsigmas * cloud_sig_rp / radius) - phistepsize;
-  const double philim_high_calc = phi + (_nsigmas * cloud_sig_rp / radius) + phistepsize;
+  const double philim_low = phi - (_nsigmas * cloud_sig_rp / radius) - phistepsize;
+  const double philim_high = phi + (_nsigmas * cloud_sig_rp / radius) + phistepsize;
 
   //std::cout << "side : "<< side <<" zigzags: phi " << phi << " philim_low_calc " << philim_low_calc << " philim_high_calc " << philim_high_calc << std::endl;
   // Find the pad range that covers this phi range
   //std::cout << "philim_low = check_phi" << std::endl;
-  const double philim_low = check_phi(side, philim_low_calc, radius);
+  //const double philim_low = check_phi(side, philim_low_calc, radius);
   //std::cout << "philim_high = check_phi" << std::endl;
-  const double philim_high = check_phi(side, philim_high_calc, radius);
+  //const double philim_high = check_phi(side, philim_high_calc, radius);
   //philim_high = -1.32067;//eshulga
   //std::cout<<"PHG4TpcPadPlaneReadout::populate_zigzag_phibins phibin_low philim_high="<< philim_high << std::endl;
   //for (int p =0; p<100;p++){

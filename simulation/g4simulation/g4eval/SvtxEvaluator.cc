@@ -1703,6 +1703,7 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
             phibin = (float) TpcDefs::getPad(hit_key);
             zbin = (float) TpcDefs::getTBin(hit_key);
             phi = local_GeoLayer->get_phicenter(phibin,side);
+            //std::cout<<"SvtxEvaluator phi: " << phi << " phibin:" << phibin << " zbin:" << zbin << std::endl;
             z = local_GeoLayer->get_zcenter(zbin);
           }
 

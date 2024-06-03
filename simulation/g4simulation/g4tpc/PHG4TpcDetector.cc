@@ -656,7 +656,7 @@ void PHG4TpcDetector::add_geometry_node()
         double sec_min_phi = sec_max_phi - 2 * M_PI / 12;
         sector_min_Phi[zside].push_back(sec_min_phi);
         sector_max_Phi[zside].push_back(sec_max_phi);
-        std::cout<< "sec_min_phi = " << sec_min_phi << " sec_max_phi = " << sec_max_phi << std::endl;
+        //std::cout<< "sec_min_phi = " << sec_min_phi << " sec_max_phi = " << sec_max_phi << std::endl;
       }  // isector
     }
 
@@ -715,7 +715,10 @@ void PHG4TpcDetector::add_geometry_node()
         layerseggeo->set_zmin(MinT);
         layerseggeo->set_zstep(TBinWidth);
         layerseggeo->set_phibins(NPhiBins[iregion]);
-        layerseggeo->set_phistep(PhiBinWidth[iregion]);
+        double PhiPadWidth = std::abs(pad_phi[v_layer][4]-pad_phi[v_layer][3]);
+        layerseggeo->set_phistep(PhiPadWidth);
+        //std::cout<< "PhiBinWidth[iregion] = " << PhiBinWidth[iregion] << " PhiPadWidth = " << PhiPadWidth << std::endl;
+        //layerseggeo->set_phistep(PhiBinWidth[iregion]);
         layerseggeo->set_r_bias(sector_R_bias);
         layerseggeo->set_phi_bias(sector_Phi_bias);
         layerseggeo->set_sector_min_phi(sector_min_Phi);

@@ -175,7 +175,7 @@ TrkrHitSetContainer::ConstRange all_hitsets = hitmap->getHitSets(TrkrDefs::TrkrI
       auto m_hittbin = TpcDefs::getTBin(hitkey);
       //Check TrackResiduals.cc
       auto geoLayer = geomContainer->GetLayerCellGeom(hitlayer);
-      auto phi = geoLayer->get_phicenter(hitpad);
+      auto phi = geoLayer->get_phicenter(hitpad, m_side);
       auto radius = geoLayer->get_radius();
       auto m_hitgx = radius * std::cos(phi);
       auto m_hitgy = radius * std::sin(phi);
