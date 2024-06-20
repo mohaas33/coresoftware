@@ -267,16 +267,16 @@ PHG4TpcCylinderGeom::get_etabounds(const int ibin) const
 }
 
 std::pair<double, double>
-PHG4TpcCylinderGeom::get_phibounds(const int ibin) const
+PHG4TpcCylinderGeom::get_phibounds(const int ibin, int side) const
 {
   if (ibin < 0 || ibin > nphibins)
   {
     std::cout << PHWHERE << "Asking for invalid bin in phi: " << ibin << std::endl;
     exit(1);
   }
-
-  double philow = phimin + ibin * phistep;
-  double phihigh = philow + phistep;
+  double phi = get_phicenter(ibin, side);
+  double philow = phi - phistep/2;
+  double phihigh = phi + phistep/2;
   return std::make_pair(philow, phihigh);
 }
 
@@ -803,28 +803,8 @@ PHG4TpcCylinderGeom::get_phi(const float ibin, int side) const
 
   check_binning_method_phi();
 
-  //const int side = 0;
-  unsigned int pads_per_sector = nphibins / 12;
-  unsigned int sector = ibin / pads_per_sector;
-  //double phi_old = (sector_max_Phi[side][sector] - (ibin + 0.5 - sector * pads_per_sector) * phistep);
-  int vbin = ibin -  pads_per_sector * sector;
-  //int vbin1 = layer_pad_phi.size()-vbin;
-  //double phi = (sector_max_Phi[side][sector]+sector_min_Phi[side][sector])/2 - pow(-1,side)*layer_pad_phi[vbin];
-  double phi = (sector_max_Phi[side][sector]+sector_min_Phi[side][sector])/2 - layer_pad_phi[vbin];
-  //for(size_t k=0; k<layer_pad_phi.size();k++){
-  //  std::cout << k << "; "<< layer_pad_phi[k] << "| ";
-  //}
-  //std::cout <<std::endl;
-  //std::cout << "PHG4TpcCylinderGeom::get_phi sector = " << sector << 
-  //            " side = " << side <<
-  //            "sector_max_Phi[side][sector] = " << sector_max_Phi[side][sector] <<
-  //            "sector_min_Phi[side][sector]" << sector_min_Phi[side][sector] <<
-  //            "(sector_max_Phi[side][sector]+sector_min_Phi[side][sector])/2" << (sector_max_Phi[side][sector]+sector_min_Phi[side][sector])/2 << std::endl;
+  double phi = get_phicenter(ibin, side);
 
-  if (phi <= -M_PI)
-  {
-    phi += 2 * M_PI;
-  }
   return phi;
 }
 
