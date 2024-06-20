@@ -19,6 +19,8 @@
 
 // tpc distortion correction
 #include <tpc/TpcDistortionCorrectionContainer.h>
+#include <g4detectors/PHG4TpcCylinderGeom.h>
+#include <g4detectors/PHG4TpcCylinderGeomContainer.h>
 
 #include <phfield/PHFieldConfigv2.h>
 
@@ -62,7 +64,7 @@
 
 #if defined(_DEBUG_)
 #define LogDebug(exp) \
-  if (Verbosity() > 0) std::cout << "DEBUG: " << __FILE__ << ": " << __LINE__ << ": " << exp
+  if (Verbosity() > 2) std::cout << "DEBUG: " << __FILE__ << ": " << __LINE__ << ": " << exp
 #else
 #define LogDebug(exp) (void) 0
 #endif
@@ -134,11 +136,11 @@ namespace
   }
 
   /// pseudo rapidity of Acts::Vector3
-  inline double get_eta(const Acts::Vector3& position)
-  {
-    const double norm = std::sqrt(square(position.x()) + square(position.y()) + square(position.z()));
-    return std::log((norm + position.z()) / (norm - position.z())) / 2;
-  }
+  /* inline double get_eta(const Acts::Vector3& position) */
+  /* { */
+  /*   const double norm = std::sqrt(square(position.x()) + square(position.y()) + square(position.z())); */
+  /*   return std::log((norm + position.z()) / (norm - position.z())) / 2; */
+  /* } */
 
   inline double breaking_angle(double x1, double y1, double z1, double x2, double y2, double z2)
   {
@@ -210,7 +212,7 @@ Acts::Vector3 PHCASeeding::getGlobalPosition(TrkrDefs::cluskey key, TrkrCluster*
   return globalpos;
 }
 
-void PHCASeeding::QueryTree(const bgi::rtree<PHCASeeding::pointKey, bgi::quadratic<16>>& rtree, double phimin, double etamin, double phimax, double etamax, std::vector<pointKey>& returned_values) const
+void PHCASeeding::QueryTree(const bgi::rtree<PHCASeeding::pointKey, bgi::quadratic<16>>& rtree, double phimin, double z_min, double phimax, double z_max, std::vector<pointKey>& returned_values) const
 {
   bool query_both_ends = false;
   if (phimin < 0)
@@ -225,12 +227,12 @@ void PHCASeeding::QueryTree(const bgi::rtree<PHCASeeding::pointKey, bgi::quadrat
   }
   if (query_both_ends)
   {
-    rtree.query(bgi::intersects(box(point(phimin, etamin), point(2 * M_PI, etamax))), std::back_inserter(returned_values));
-    rtree.query(bgi::intersects(box(point(0., etamin), point(phimax, etamax))), std::back_inserter(returned_values));
+    rtree.query(bgi::intersects(box(point(phimin, z_min), point(2 * M_PI, z_max))), std::back_inserter(returned_values));
+    rtree.query(bgi::intersects(box(point(0., z_min), point(phimax, z_max))), std::back_inserter(returned_values));
   }
   else
   {
-    rtree.query(bgi::intersects(box(point(phimin, etamin), point(phimax, etamax))), std::back_inserter(returned_values));
+    rtree.query(bgi::intersects(box(point(phimin, z_min), point(phimax, z_max))), std::back_inserter(returned_values));
   }
 }
 
@@ -250,7 +252,7 @@ std::pair<PHCASeeding::PositionMap, PHCASeeding::keyListPerLayer> PHCASeeding::F
       unsigned int layer = TrkrDefs::getLayer(ckey);
       if (layer < _start_layer || layer >= _end_layer)
       {
-        if (Verbosity() > 0)
+        if (Verbosity() > 2)
         {
           std::cout << "layer: " << layer << std::endl;
         }
@@ -289,7 +291,7 @@ std::vector<PHCASeeding::coordKey> PHCASeeding::FillTree(bgi::rtree<PHCASeeding:
     const auto& globalpos_d = globalPositions.at(ckey);
     const double clus_phi = get_phi(globalpos_d);
     const double clus_z = globalpos_d.z();
-    if (Verbosity() > 0)
+    if (Verbosity() > 5)
     {
       /* int layer = TrkrDefs::getLayer(ckey); */
       std::cout << "Found cluster " << ckey << " in layer " << layer << std::endl;
@@ -306,15 +308,15 @@ std::vector<PHCASeeding::coordKey> PHCASeeding::FillTree(bgi::rtree<PHCASeeding:
     _rtree.insert(std::make_pair(point(clus_phi, globalpos_d.z()), ckey));
     t_fill->stop();
   }
-  if (Verbosity() > 1)
+  if (Verbosity() > 5)
   {
     std::cout << "nhits in layer(" << layer << "): " << coords.size() << std::endl;
   }
-  if (Verbosity() > 0)
+  if (Verbosity() > 3)
   {
     std::cout << "fill time: " << t_fill->get_accumulated_time() / 1000. << " sec" << std::endl;
   }
-  if (Verbosity() > 0)
+  if (Verbosity() > 3)
   {
     std::cout << "number of duplicates : " << n_dupli << std::endl;
   }
@@ -324,7 +326,7 @@ std::vector<PHCASeeding::coordKey> PHCASeeding::FillTree(bgi::rtree<PHCASeeding:
 int PHCASeeding::Process(PHCompositeNode* /*topNode*/)
 {
   process_tupout_count();
-  if (Verbosity() > 1)
+  if (Verbosity() > 3)
   {
     std::cout << " Process...  " << std::endl;
   }
@@ -424,6 +426,7 @@ std::pair<PHCASeeding::keyLinks, PHCASeeding::keyLinkPerLayer> PHCASeeding::Crea
     // these lines of code will rotates through all three _rtree's in the array,
     // where the old lower becomes the new middle, the old middle the new upper,
     // and the old upper drops out and that _rtree is filled with the new lower
+    const unsigned int LAYER = layer_index + _FIRST_LAYER_TPC;
     int index_above = (layer_index + 1) % 3;
     int index_current = (layer_index)   % 3;
     int index_below = (layer_index - 1) % 3;
@@ -470,20 +473,20 @@ std::pair<PHCASeeding::keyLinks, PHCASeeding::keyLinkPerLayer> PHCASeeding::Crea
       std::vector<pointKey> ClustersBelow;
 
       QueryTree(_rtree_below,
-          StartPhi - _neighbor_phi_width,
-          StartZ - _neighbor_z_width,
-          StartPhi + _neighbor_phi_width,
-          StartZ + _neighbor_z_width,
+          StartPhi - dphi_per_layer[LAYER],
+          StartZ - dZ_per_layer[LAYER],
+          StartPhi + dphi_per_layer[LAYER],
+          StartZ + dZ_per_layer[LAYER],
           ClustersBelow);
         
       FillTupWinLink(_rtree_below, StartCluster, globalPositions);
 
       QueryTree(_rtree_above,
-                StartPhi - _neighbor_phi_width,
-                StartZ - _neighbor_z_width,
-                StartPhi + _neighbor_phi_width,
-                StartZ + _neighbor_z_width,
-                ClustersAbove);
+          StartPhi - dphi_per_layer[LAYER+1],
+          StartZ - dZ_per_layer[LAYER+1],
+          StartPhi + dphi_per_layer[LAYER+1],
+          StartZ + dZ_per_layer[LAYER+1],
+          ClustersAbove);
 
       t_seed->stop();
       rtree_query_time += t_seed->elapsed();
@@ -496,7 +499,7 @@ std::pair<PHCASeeding::keyLinks, PHCASeeding::keyLinkPerLayer> PHCASeeding::Crea
       delta_above.clear();
       delta_below.resize(ClustersBelow.size());
       delta_above.resize(ClustersAbove.size());
-      // calculate (delta_eta, delta_phi) vector for each neighboring cluster
+      // calculate (delta_z_, delta_phi) vector for each neighboring cluster
 
       std::transform(ClustersBelow.begin(), ClustersBelow.end(), delta_below.begin(),
                      [&](pointKey BelowCandidate)
@@ -518,7 +521,7 @@ std::pair<PHCASeeding::keyLinks, PHCASeeding::keyLinkPerLayer> PHCASeeding::Crea
       t_seed->restart();
 
       // find the three clusters closest to a straight line
-      // (by maximizing the cos of the angle between the (delta_eta,delta_phi) vectors)
+      // (by maximizing the cos of the angle between the (delta_z_,delta_phi) vectors)
       // double minSumLengths = 1e9;
       std::unordered_set<TrkrDefs::cluskey> bestAboveClusters;
       for (size_t iAbove = 0; iAbove < delta_above.size(); ++iAbove)
@@ -628,7 +631,7 @@ double PHCASeeding::getMengerCurvature(TrkrDefs::cluskey a, TrkrDefs::cluskey b,
 PHCASeeding::keyLists PHCASeeding::FollowBiLinks(const PHCASeeding::keyLinks& trackSeedPairs, const PHCASeeding::keyLinkPerLayer& bilinks, const PHCASeeding::PositionMap& globalPositions) const
 {
   // form all possible starting 3-cluster tracks (we need that to calculate curvature)
-  std::vector<keyList> trackSeedKeyLists;
+  keyLists seeds;
   for (auto& startLink : trackSeedPairs)
   {
     TrkrDefs::cluskey trackHead = startLink.second;
@@ -647,13 +650,16 @@ PHCASeeding::keyLists PHCASeeding::FollowBiLinks(const PHCASeeding::keyLinks& tr
       trackSeedTriplet.push_back(startLink.first);
       trackSeedTriplet.push_back(startLink.second);
       trackSeedTriplet.push_back(matchlink.second);
-      trackSeedKeyLists.push_back(trackSeedTriplet);
+      seeds.push_back(trackSeedTriplet);
 
       fill_tuple(_tupclus_seeds, 0, startLink.first, globalPositions.at(startLink.first));
       fill_tuple(_tupclus_seeds, 1, startLink.second, globalPositions.at(startLink.second));
       fill_tuple(_tupclus_seeds, 2, matchlink.second, globalPositions.at(matchlink.second));
     }
   }
+
+  // - grow every seed in the seedlist, up to the maximum number of clusters per seed
+  // - the algorithm is that every cluster is allowed to be used by any number of chains, so there is no penalty in which order they are added
 
   t_seed->stop();
   if (Verbosity() > 0)
@@ -665,164 +671,180 @@ PHCASeeding::keyLists PHCASeeding::FollowBiLinks(const PHCASeeding::keyLinks& tr
 
   // std::cout << "STARTING SEED ASSEMBLY" << std::endl;
 
-  //  std::vector<keyList> trackSeedKeyLists;
-  std::vector<keyList> tempSeedKeyLists = trackSeedKeyLists;
-  trackSeedKeyLists.clear();
+  // The algorithm is to add keylinks to every chain of bilinks (seed) that wants them
+  // It is not first come first serve
+  // Therefore, follow each chain to the end
+  // If there are possible multiple links to add to a single chain, optionally split the chain to 
+  // follow all possibile links (depending on the input parameter _split_seeds)
+
+  //  std::vector<keyList> seeds;
+  // std::vector<keyList> tempSeedKeyLists = seeds;
+  // seeds.clear();
+  if (seeds.size() == 0)
+  {
+    return seeds;
+  }
 
   int nsplit_chains = -1;
+  
+  // positions of the seed being following
+  std::array<float, 4> phi, R, Z;
+  keyLists grown_seeds;
 
-  while (tempSeedKeyLists.size() > 0)
-  {
-    if (Verbosity() > 0)
-    {
-      std::cout << "temp size: " << tempSeedKeyLists.size() << std::endl;
-    }
-    if (Verbosity() > 0)
-    {
-      std::cout << "final size: " << trackSeedKeyLists.size() << std::endl;
-    }
-    std::vector<keyList> newtempSeedKeyLists;
-    for (auto& seed : tempSeedKeyLists)
-    {
-      // don't try to grow seeds past the maximum
-      if (seed.size() >= _max_clusters_per_seed) {
-        trackSeedKeyLists.push_back(seed);
-        fill_tuple_with_seed(_tupclus_grown_seeds, seed, globalPositions);
-        continue;
-      }
+  while (seeds.size() > 0) {
+    keyLists split_seeds {}; // to collect when using split tracks
+    for (auto& seed : seeds) {
 
-      TrkrDefs::cluskey trackHead = seed.back();
-      unsigned int trackHead_layer = TrkrDefs::getLayer(trackHead) - (_nlayers_intt + _nlayers_maps);
-      // bool no_next_link = true;
-      /* for (auto testlink = matched_links.first; testlink != matched_links.second; ++testlink) */
-
-    bool did_seed_grow = false;
-    keyList links_added {}; 
-    for (const auto& link : bilinks[trackHead_layer]) {
-      if (link.first != trackHead) { continue; }
-      // It appears that it is just faster to traverse the lists then it is to use a binary-sorted search
-      // In any case, if we use this cord in the future, be sure to sort the bilinks before using
-    /* auto matched_links = std::equal_range(bilinks[trackHead_layer].begin(), bilinks[trackHead_layer].end(), trackHead, CompKeyToBilink()); */
-    /* for (auto link = matched_links.first; link != matched_links.second; ++link) */
-      /* { */
-
-
-        // LOGIC:
-        // See if the fourth "test" cluster from the link is consistent with the previous three:
-        // The clusters are labelled as:
-        // 3 -> 2 -> 1 -> t, which are 3(2nd back fropm head) -> 2(1st back from head) -> 1(head) -> t(test)
-        auto& head_pos = globalPositions.at(trackHead);
-        auto& prev_pos = globalPositions.at(seed.rbegin()[1]);
-        float x1 = head_pos.x();
-        float y1 = head_pos.y();
-        float z1 = head_pos.z();
-        float x2 = prev_pos.x();
-        float y2 = prev_pos.y();
-        float z2 = prev_pos.z();
-        float dr_12 = sqrt(x1 * x1 + y1 * y1) - sqrt(x2 * x2 + y2 * y2);
-        TrkrDefs::cluskey testCluster = link.second;
-        auto& test_pos = globalPositions.at(testCluster);
-        float xt = test_pos.x();
-        float yt = test_pos.y();
-        float zt = test_pos.z();
-        float new_dr = sqrt(xt * xt + yt * yt) - sqrt(x1 * x1 + y1 * y1);
-        FillTupWinGrowSeed(seed, link, globalPositions);
-        /* FillTupWinGrowSeed(seed, link, globalPositions); */
-        if (fabs((z1 - z2) / dr_12 - (zt - z1) / new_dr) > _clusadd_delta_dzdr_window)
-        {
-          continue;
+      // grow the seed to the maximum length allowed
+      bool first_link = true; 
+      bool done_growing = (seed.size() >= _max_clusters_per_seed);
+      keyList head_keys = { seed.back() };
+      /* keyList head_keys = { seed.back() }; // heads of the seed */
+                                           
+      while (!done_growing) {
+        // Get all bilinks which fit to the head of the chain
+        unsigned int iL = TrkrDefs::getLayer(head_keys[0]) - _FIRST_LAYER_TPC;
+        keySet link_matches {};
+        for (const auto& head_key : head_keys) {
+            // also possible to sort the links and use a sorted search like:
+            // auto matched_links = std::equal_range(bilinks[trackHead_layer].begin(), bilinks[trackHead_layer].end(), trackHead, CompKeyToBilink()); 
+            // for (auto link = matched_links.first; link != matched_links.second; ++link)
+          for (auto& link : bilinks[iL]) { // iL for "Index of Layer"
+            if (link.first == head_key) { 
+              link_matches.insert(link.second);
+            }
+          }
         }
-        auto& third_pos = globalPositions.at(seed.rbegin()[2]);
-        float x3 = third_pos.x();
-        float y3 = third_pos.y();
-        float dr_23 = sqrt(x2 * x2 + y2 * y2) - sqrt(x3 * x3 + y3 * y3);
-        float phi1 = atan2(y1, x1);
-        float phi2 = atan2(y2, x2);
-        float phi3 = atan2(y3, x3);
-        float dphi12 = std::fmod(phi1 - phi2, M_PI);
-        float dphi23 = std::fmod(phi2 - phi3, M_PI);
-        float d2phidr2 = dphi12 / (dr_12 * dr_12) - dphi23 / (dr_23 * dr_23);
-        float new_dphi = std::fmod(atan2(yt, xt) - atan2(y1, x1), M_PI);
-        float new_d2phidr2 = new_dphi / (new_dr * new_dr) - dphi12 / (dr_12 * dr_12);
-        if (fabs(d2phidr2 - new_d2phidr2) < _clusadd_delta_dphidr2_window)
-        {
-          links_added.push_back(link.second);
-          did_seed_grow = true;
-          keyList newseed = seed;
-          newseed.push_back(link.second);
-          newtempSeedKeyLists.push_back(newseed);
+
+        // find which link_matches pass the dZdR and d2phidr2 cuts
+        keyList passing_links{};
+        for (const auto link : link_matches) { // iL for "Index of Layer"
+          // see if the link passes the growth cuts
+          if (first_link) {
+            first_link = false;
+            for (int i=1;i<4;++i) {
+              const auto& pos = globalPositions.at(seed.rbegin()[i-1]);
+              const auto x = pos.x();
+              const auto y = pos.y();
+              int index = (iL+i)%4;
+              Z[index] = pos.z();
+              phi[index] = atan2(y,x);
+              R[index] = sqrt(x*x + y*y);
+            }
+          }
+         
+          // get the data for the new link
+          const auto& pos = globalPositions.at(link);
+          const auto x = pos.x();
+          const auto y = pos.y();
+          const auto z = pos.z();
+
+
+          const int i0 = (iL+0)%4;
+          const int i1 = (iL+1)%4;
+          const int i2 = (iL+2)%4;
+          const int i3 = (iL+3)%4;
+
+          phi[i0] = atan2(y,x);
+          R[i0] = sqrt(x*x + y*y);
+          Z[i0] = z;
+
+          // see if it is possible matching link
+          if (_split_seeds) FillTupWinGrowSeed(seed, {head_keys[0],link}, globalPositions);
+          const float dZ_12 = Z[i1] - Z[i2];
+          const float dZ_01 = Z[i0] - Z[i1];
+          const float dR_12 = R[i1] - R[i2];
+          const float dR_01 = R[i0] - R[i1];
+          const float dZdR_01 = dZ_01 / dR_01;
+          const float dZdR_12 = dZ_12 / dR_12;
+
+          if (fabs(dZdR_01 - dZdR_12) > _clusadd_delta_dzdr_window) {
+            continue;
+          }
+          const float dphi_01 = phi[i0] - phi[i1];
+          const float dphi_12 = phi[i1] - phi[i2];
+          const float dphi_23 = phi[i2] - phi[i3];
+          const float dR_23 = R[i2] - R[i3];
+          const float d2phidr2_01 = dphi_01 / dR_01 / dR_01 - dphi_12 / dR_12 / dR_12;
+          const float d2phidr2_12 = dphi_12 / dR_12 / dR_12 - dphi_23 / dR_23 / dR_23;
+          if (fabs(d2phidr2_01 - d2phidr2_12) > _clusadd_delta_dphidr2_window) {
+            continue;
+          }
+          passing_links.push_back(link);
+        } // end loop over all bilinks in new layer
+
+        if (_split_seeds) {
+          fill_split_chains(seed, passing_links, globalPositions, nsplit_chains);
         }
-      } // end look over possible links to grow the seed
-      fill_split_chains(seed, links_added, globalPositions, nsplit_chains);
-      if (did_seed_grow == false && seed.size() >= _min_clusters_per_seed) {
-        // publish the seed
-        trackSeedKeyLists.push_back(seed);
-        fill_tuple_with_seed(_tupclus_grown_seeds, seed, globalPositions);
+        
+        // grow the chain appropriately
+        switch (passing_links.size()) {
+          case 0:
+            done_growing = true;
+            break;
+          case 1:
+            seed.push_back(passing_links[0]);
+            if (seed.size() >= _max_clusters_per_seed) { done_growing = true; } // this seed is done growing
+            head_keys = { passing_links[0] };
+            break;
+          default: // more than one matched cluster
+            if (_split_seeds){
+              // there are multiple matching clusters
+              // if we are splitting seeds, then just push back each of the matched
+              // to the back of the seeds to grow on their own
+              for (unsigned int i=1; i<passing_links.size(); ++i) {
+                keyList newseed = {seed.begin(), seed.end()};
+                newseed.push_back(passing_links[i]);
+                split_seeds.push_back(newseed);
+              }
+              seed.push_back(passing_links[0]);
+              if (seed.size() >= _max_clusters_per_seed) { done_growing = true; }
+              head_keys = { passing_links[0] };
+            } else {
+              // multiple seeds matched. get the average position to put into
+              // Z, phi, and R (of [iL]), and pass all the links to find the next cluster
+              float avg_x = 0;
+              float avg_y = 0;
+              float avg_z = 0;
+              for (const auto& link : passing_links) {
+                const auto& pos = globalPositions.at(link);
+                avg_x += pos.x();
+                avg_y += pos.y();
+                avg_z += pos.z();
+              }
+              avg_x /= passing_links.size();
+              avg_y /= passing_links.size();
+              avg_z /= passing_links.size();
+              phi[iL%4] = atan2(avg_y, avg_x);
+              R[iL%4] = sqrt(avg_x*avg_x + avg_y*avg_y);
+              Z[iL%4] = avg_z;
+              head_keys = passing_links; // will try and grow from this position
+            } // end of logic for processing passing seeds
+            break;
+          } // end of seed length switch
+        } // end of seed growing loop: if (!done_growing)
+        if (seed.size() >= _min_clusters_per_seed) {
+          grown_seeds.push_back(seed);    
+          fill_tuple_with_seed(_tupclus_grown_seeds, seed, globalPositions);
+        }
+      } // end of loop over seeds
+      seeds.clear();
+      for (const auto &seed : split_seeds) {
+        seeds.push_back(seed);
       }
-    }
-    if (Verbosity() > 0)
-    {
-      std::cout << "new temp size: " << newtempSeedKeyLists.size() << std::endl;
-    }
-    tempSeedKeyLists = newtempSeedKeyLists;
-  }
+      /* seeds = split_seeds; */
+    } // end of looping over all seeds
+
   // old code block move to end of code under the title: "---OLD CODE 1: SKIP_LAYERS---"
   t_seed->stop();
-  if (Verbosity() > 0)
+  if (Verbosity() > 1)
   {
     std::cout << "keychain assembly time: " << t_seed->get_accumulated_time() / 1000 << " s" << std::endl;
   }
   t_seed->restart();
   LogDebug(" track key chains assembled: " << trackSeedKeyLists.size() << std::endl);
   LogDebug(" track key chain lengths: " << std::endl);
-  for (auto trackKeyChain = trackSeedKeyLists.begin(); trackKeyChain != trackSeedKeyLists.end(); ++trackKeyChain)
-  {
-    LogDebug(" " << trackKeyChain->size() << std::endl);
-  }
-  int jumpcount = 0;
-  LogDebug(" track key associations:" << std::endl);
-  for (auto& trackSeedKeyList : trackSeedKeyLists)
-  {
-    LogDebug(" seed " << i << ":" << std::endl);
-
-    double lasteta = -100;
-    double lastphi = -100;
-    for (unsigned long& j : trackSeedKeyList)
-    {
-      const auto& globalpos = globalPositions.at(j);
-      const double clus_phi = get_phi(globalpos);
-      const double clus_eta = get_eta(globalpos);
-      const double etajump = clus_eta - lasteta;
-      const double phijump = clus_phi - lastphi;
-#if defined(_DEBUG_)
-      unsigned int lay = TrkrDefs::getLayer(trackSeedKeyLists[i][j].second);
-#endif
-      if ((fabs(etajump) > 0.1 && lasteta != -100) || (fabs(phijump) > 1 && lastphi != -100))
-      {
-        LogDebug(" Eta or Phi jump too large! " << std::endl);
-        ++jumpcount;
-      }
-      LogDebug(" (eta,phi,layer) = (" << clus_eta << "," << clus_phi << "," << lay << ") "
-                                      << " (x,y,z) = (" << globalpos(0) << "," << globalpos(1) << "," << globalpos(2) << ")" << std::endl);
-
-      if (Verbosity() > 0)
-      {
-        unsigned int lay = TrkrDefs::getLayer(j);
-        std::cout << "  eta, phi, layer = (" << clus_eta << "," << clus_phi << "," << lay << ") "
-                  << " (x,y,z) = (" << globalpos(0) << "," << globalpos(1) << "," << globalpos(2) << ")" << std::endl;
-      }
-      lasteta = clus_eta;
-      lastphi = clus_phi;
-    }
-  }
-  LogDebug(" Total large jumps: " << jumpcount << std::endl);
-  t_seed->stop();
-  if (Verbosity() > 0)
-  {
-    std::cout << "eta-phi sanity check time: " << t_seed->get_accumulated_time() / 1000 << " s" << std::endl;
-  }
-  t_seed->restart();
-  return trackSeedKeyLists;
+  return grown_seeds;
 }
 
 std::vector<TrackSeed_v2> PHCASeeding::RemoveBadClusters(const std::vector<PHCASeeding::keyList>& chains, const PHCASeeding::PositionMap& globalPositions) const
@@ -839,7 +861,7 @@ std::vector<TrackSeed_v2> PHCASeeding::RemoveBadClusters(const std::vector<PHCAS
     {
       continue;
     }
-    if (Verbosity() > 0)
+    if (Verbosity() > 3)
     {
       std::cout << "chain size: " << chain.size() << std::endl;
     }
@@ -865,14 +887,12 @@ std::vector<TrackSeed_v2> PHCASeeding::RemoveBadClusters(const std::vector<PHCAS
 
     // assign clusters to seed
     TrackSeed_v2 trackseed;
-    for (unsigned long i : chain)
+    for (const auto& key : chain)
     {
-      // if(xy_resid[i]>_xy_outlier_threshold) continue;
-      trackseed.insert_cluster_key(i);
+      trackseed.insert_cluster_key(key);
     }
-
     clean_chains.push_back(trackseed);
-    if (Verbosity() > 0)
+    if (Verbosity() > 2)
     {
       std::cout << "pushed clean chain with " << trackseed.size_cluster_keys() << " clusters" << std::endl;
     }
@@ -957,12 +977,30 @@ int PHCASeeding::Setup(PHCompositeNode* topNode)  // This is called by ::InitRun
   fitter->setFixedClusterError(1, _fixed_clus_err.at(1));
   fitter->setFixedClusterError(2, _fixed_clus_err.at(2));
 
+
+  PHG4TpcCylinderGeomContainer* geom_container =
+      findNode::getClass<PHG4TpcCylinderGeomContainer>(topNode, "CYLINDERCELLGEOM_SVTX");
+  if (!geom_container)
+  {
+    std::cerr << PHWHERE << "ERROR: Can't find node CYLINDERCELLGEOM_SVTX" << std::endl;
+    return Fun4AllReturnCodes::ABORTRUN;
+  }
+  for (int i=8;i<=54; ++i) {
+    const float rad_0 = geom_container->GetLayerCellGeom(i-1)->get_radius();
+    const float rad_1 = geom_container->GetLayerCellGeom(i)->get_radius();
+    const float delta_rad = rad_1-rad_0;
+
+    // sector boundaries between 22-23 and 39-40
+
+    dZ_per_layer[i]   = _neighbor_z_width   * delta_rad;
+    dphi_per_layer[i] = _neighbor_phi_width * delta_rad;
+  }
   
 #if defined(_PHCASEEDING_CLUSTERLOG_TUPOUT_)
   std::cout << " Writing _CLUSTER_LOG_TUPOUT.root file " << std::endl;
   _f_clustering_process = new TFile("_CLUSTER_LOG_TUPOUT.root", "recreate");
   _tupclus_all         = new TNtuple("all",         "all clusters","event:layer:num:x:y:z");
-  _tupclus_links       = new TNtuple("links",       "links","event:layer:updown01:x:y:z:delta_eta:delta_phi");
+  _tupclus_links       = new TNtuple("links",       "links","event:layer:updown01:x:y:z:delta_z:delta_phi");
   _tupclus_bilinks     = new TNtuple("bilinks",     "bilinks","event:layer:topbot01:x:y:z");
   _tupclus_seeds       = new TNtuple("seeds",       "3 bilink seeds cores","event:layer:seed012:x:y:z");
   _tupclus_grown_seeds = new TNtuple("grown_seeds", "grown seeds", "event:layer:seednum05:x:y:z");
@@ -973,7 +1011,7 @@ int PHCASeeding::Setup(PHCompositeNode* topNode)  // This is called by ::InitRun
       "event:layerL:xL:yL:zL:layer1:x1:y1:z1:dzdr_12:dzdr_L1:delta_dzdr_12_L1:d2phidr2_123:d2phidr2_L12:delta_d2phidr2");
 
   _search_windows = new TNtuple("search_windows","windows used in algorithm to seed clusters",
-      "DelEta_ClSearch:DelPhi_ClSearch:start_layer:end_layer:dzdr_ClAdd:dphidr2_ClAdd");
+      "DelZ_ClSearch:DelPhi_ClSearch:start_layer:end_layer:dzdr_ClAdd:dphidr2_ClAdd");
 
   _tup_chainfork  = new TNtuple("chainfork", "chain with multiple links, which if forking", "event:nchain:layer:x:y:z:dzdr:d2phidr2:nlink:nlinks"); // nlinks to add, 0 ... nlinks
   _tup_chainbody  = new TNtuple("chainbody", "chain body with multiple link options", "event:nchain:layer:x:y:z:dzdr:d2phidr2:nlink:nlinks"); // nlinks in chain being added to will be 0, 1, 2 ... working backward from the fork -- dZ and dphi are dropped for final links as necessary
