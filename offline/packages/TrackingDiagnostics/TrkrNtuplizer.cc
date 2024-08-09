@@ -1611,21 +1611,7 @@ void TrkrNtuplizer::FillTrack(float fX[50], SvtxTrack* track, GlobalVertexMap* v
 
 float TrkrNtuplizer::calc_dedx(TrackSeed *tpcseed){
 
-<<<<<<< HEAD
-  std::vector<float> dedxlist;
-  for (unsigned long cluster_key : clusterKeys)
-  {
-    unsigned int layer_local = TrkrDefs::getLayer(cluster_key);
-    TrkrCluster* cluster = _cluster_map->findCluster(cluster_key);
 
-    if(TrkrDefs::getTrkrId(cluster_key) != TrkrDefs::TrkrId::tpcId){
-	    continue;
-    }
-
-    float adc = cluster->getAdc();
-    PHG4TpcCylinderGeom* GeoLayer_local = _geom_container->GetLayerCellGeom(layer_local);
-    float thick = GeoLayer_local->get_thickness();
-=======
     std::vector<TrkrDefs::cluskey> clusterKeys;
     clusterKeys.insert(clusterKeys.end(), tpcseed->begin_cluster_keys(),
 		       tpcseed->end_cluster_keys());
@@ -1638,7 +1624,6 @@ float TrkrNtuplizer::calc_dedx(TrackSeed *tpcseed){
 	  continue;
       }
       TrkrCluster* cluster = _cluster_map->findCluster(cluster_key);
->>>>>>> 18e51546aa015dc18731c1907d19d7463f789377
 
       float adc = cluster->getAdc();
       PHG4TpcCylinderGeom* GeoLayer_local = _geom_container->GetLayerCellGeom(layer_local);
