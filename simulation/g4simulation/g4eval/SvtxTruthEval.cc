@@ -770,6 +770,11 @@ void SvtxTruthEval::G4ClusterSize(TrkrDefs::cluskey ckey, unsigned int layer, st
     // find the bins containing these max and min z edges
     unsigned int phibinmin = layergeom->get_phibin(g4min_phi, side);
     unsigned int phibinmax = layergeom->get_phibin(g4max_phi, side);
+    if (phibinmax < phibinmin)
+    {
+      //std::cout << "SWAPPING PHI" << std::endl;
+      std::swap(phibinmax, phibinmin);
+    }
     unsigned int phibinwidth = phibinmax - phibinmin + 1;
     g4phisize = (double) phibinwidth * layergeom->get_phistep() * layergeom->get_radius();
 

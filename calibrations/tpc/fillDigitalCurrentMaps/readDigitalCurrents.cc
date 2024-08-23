@@ -383,11 +383,11 @@ int readDigitalCurrents::process_event(PHCompositeNode *topNode)
         double phi_center = 0;
         if (_f_ccgc == 1)
         {
-          phi_center = layergeom_ccgc->get_phicenter(phibin);
+          phi_center = layergeom_ccgc->get_phicenter(phibin, zside);
         }
         else
         {
-          phi_center = layergeom_cgc->get_phicenter(phibin);
+          phi_center = layergeom_cgc->get_phicenter(phibin, zside);
         }
         if (phi_center < 0)
         {

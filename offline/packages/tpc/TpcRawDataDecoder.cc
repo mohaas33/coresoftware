@@ -446,7 +446,7 @@ int TpcRawDataDecoder::process_event(PHCompositeNode *topNode)
           // generate hit key
           if (float(adc) - pedestal > 2)
           {
-            unsigned int phibin = layergeom->find_phibin(phi);
+            unsigned int phibin = layergeom->get_phibin(phi, side);
             if((int)phibin > 1000) std::cout << "TpcRawDataDecoder:: phibin is out of range > "<< pads_per_sector[FEE_R[fee]-1]*12 << std::endl;
             TrkrDefs::hitkey hitkey = TpcDefs::genHitKey(phibin, (unsigned int) t);
             if(hitkey == 4294902012) std::cout << "TpcRawDataDecoder:: hitkey = "<< hitkey << " phibin = "<< phibin << std::endl;

@@ -241,6 +241,11 @@ void TpcClusterBuilder::cluster_hits(TrkrTruthTrack* track)
     }
 
     char tsize = tbinhi - tbinlo + 1;
+    if (phibinhi < phibinlo)
+    {
+      //std::cout << "SWAPPING PHI" << std::endl;
+      std::swap(phibinhi, phibinlo);
+    }
     char phisize = phibinhi - phibinlo + 1;
 
     if (tsize < 0 && verbosity > 1)
